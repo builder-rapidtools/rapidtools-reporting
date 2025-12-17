@@ -29,7 +29,7 @@
       "method": "POST",
       "path": "/api/client",
       "description": "Register a new client for weekly reporting",
-      "idempotent": true,
+      "idempotent": false,
       "side_effects": ["storage"]
     },
     {
@@ -61,7 +61,7 @@
       "method": "POST",
       "path": "/api/client/{id}/report/send",
       "description": "Generate report and deliver via email",
-      "idempotent": true,
+      "idempotent": false,
       "side_effects": ["email", "storage"]
     }
   ],
