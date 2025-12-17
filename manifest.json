@@ -39,6 +39,69 @@
     "header": "x-api-key",
     "scope": "per_agency"
   },
+  "limits": {
+    "rate_limits": {
+      "requests_per_minute": 60,
+      "requests_per_hour": 1000,
+      "notes": "Per API key. Burst allowance: 10 requests."
+    },
+    "payload_limits": {
+      "csv_upload_max_bytes": 10485760,
+      "csv_max_rows": 100000,
+      "notes": "CSV upload: 10MB max. Maximum 100k rows per file."
+    }
+  },
+  "idempotency": {
+    "supported": true,
+    "header": "Idempotency-Key",
+    "ttl": "24h",
+    "scope": "per_agency",
+    "notes": "Report generation requests are idempotent. Repeat requests with same key return cached result."
+  },
+  "errors": {
+    "format": "application/json",
+    "structure": {
+      "ok": false,
+      "error": {
+        "code": "string",
+        "message": "string"
+      }
+    },
+    "codes": [
+      "UNAUTHORIZED",
+      "FORBIDDEN",
+      "CLIENT_NOT_FOUND",
+      "INVALID_CSV_FORMAT",
+      "CSV_TOO_LARGE",
+      "MISSING_REQUIRED_HEADERS",
+      "REPORT_GENERATION_FAILED",
+      "EMAIL_DELIVERY_FAILED"
+    ],
+    "retryable_codes": [
+      "REPORT_GENERATION_FAILED",
+      "EMAIL_DELIVERY_FAILED"
+    ]
+  },
+  "stability": {
+    "level": "beta",
+    "breaking_changes_policy": "Announced 30 days in advance via email to registered agencies.",
+    "deprecation_window": "90 days minimum",
+    "backwards_compatibility": "Maintained for existing endpoints during beta."
+  },
+  "versioning": {
+    "scheme": "url_path",
+    "current": "v1",
+    "format": "All endpoints under /api/* are v1. Version changes will introduce /api/v2/* paths.",
+    "changelog_url": "https://github.com/builder-rapidtools/rapidtools-reporting/releases"
+  },
+  "non_goals": [
+    "Real-time analytics or live dashboards",
+    "Data transformation or calculation beyond summarization",
+    "Direct integration with GA4 API (requires CSV export)",
+    "Multi-format report output (PDF only)",
+    "Custom branding beyond logo upload",
+    "Report scheduling beyond weekly cadence"
+  ],
   "pricing": {
     "model": "subscription",
     "currency": "GBP",
