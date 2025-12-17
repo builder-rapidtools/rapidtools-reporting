@@ -15,6 +15,14 @@ Automated weekly client reporting service that generates branded PDF reports fro
 - Does not verify business accuracy of uploaded data (format validation only)
 - Does not provide real-time analytics or dashboards
 
+## Capabilities
+
+- Generate PDF reports from uploaded CSV analytics data
+- Accept GA4 CSV exports with session and user metrics
+- Deliver reports via email with secure download links
+- Schedule automated weekly report generation
+- Store report data and PDFs in cloud storage
+
 ## Links
 
 - **Service landing page**: https://reporting.rapidtools.dev
