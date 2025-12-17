@@ -138,6 +138,22 @@ curl https://reporting-tool-api.jamesredwards89.workers.dev/api/health
 }
 ```
 
+**Auth failure example:**
+
+```bash
+curl https://reporting-tool-api.jamesredwards89.workers.dev/api/clients
+```
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Missing x-api-key header"
+  }
+}
+```
+
 ## Error codes
 
 **Application errors:**
@@ -151,10 +167,13 @@ curl https://reporting-tool-api.jamesredwards89.workers.dev/api/health
 - `INVALID_CSV` - CSV format is invalid
 - `NO_DATA_UPLOADED` - No CSV data has been uploaded yet
 - `DATA_NOT_FOUND` - Uploaded data not found
-- `REPORT_SEND_FAILED` - Report sending failed (retryable)
+- `REPORT_SEND_FAILED` - Report sending failed
 - `AGENCY_NOT_FOUND` - Agency not found
-- `WEBHOOK_ERROR` - Webhook processing error (retryable)
-- `INTERNAL_ERROR` - Internal server error (retryable)
+- `WEBHOOK_ERROR` - Webhook processing error
+- `INTERNAL_ERROR` - Internal server error
+- `NOT_FOUND` - Resource not found
+
+**Note**: Clients should implement their own retry logic with appropriate backoff based on error type and use case.
 
 ## Rate limits
 
