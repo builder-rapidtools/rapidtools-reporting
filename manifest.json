@@ -116,13 +116,10 @@
       "REPORT_SEND_FAILED",
       "AGENCY_NOT_FOUND",
       "WEBHOOK_ERROR",
-      "INTERNAL_ERROR"
+      "INTERNAL_ERROR",
+      "NOT_FOUND"
     ],
-    "retryable_codes": [
-      "REPORT_SEND_FAILED",
-      "WEBHOOK_ERROR",
-      "INTERNAL_ERROR"
-    ]
+    "retryable_codes": []
   },
   "stability": {
     "level": "beta",
