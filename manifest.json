@@ -3,7 +3,7 @@
   "version": "1.0",
   "schema_version": "1.0",
   "last_updated": "2025-12-17",
-  "base_url": "https://reporting-tool-api.jamesredwards89.workers.dev",
+  "base_url": "https://reporting-api.rapidtools.dev",
   "manifest_url": "https://reporting.rapidtools.dev/manifest.json",
   "documentation_url": "https://github.com/builder-rapidtools/rapidtools-reporting",
   "terms_url": "https://reporting.rapidtools.dev/terms.html",
