@@ -15,28 +15,45 @@ Automated weekly client reporting service that generates branded PDF reports fro
 - Does not verify business accuracy of uploaded data (format validation only)
 - Does not provide real-time analytics or dashboards
 
-## Capabilities
-
-- Generate PDF reports from uploaded CSV analytics data
-- Accept GA4 CSV exports with session and user metrics
-- Deliver reports via email with secure download links
-- Schedule automated weekly report generation
-- Store report data and PDFs in cloud storage
-
 ## Links
 
 - **Service landing page**: https://reporting.rapidtools.dev
-- **Manifest**: https://reporting.rapidtools.dev/manifest.json
+- **Manifest (v1 contract)**: https://reporting.rapidtools.dev/manifest.json
 - **Terms of Service**: https://reporting.rapidtools.dev/terms.html
+- **Documentation**: https://github.com/builder-rapidtools/rapidtools-reporting
+
+## Machine Contract
+
+This service follows **RapidTools machine contract v1** (`schema_version: "1.0"`):
+
+- **Capabilities**: Array of operation descriptors with `id`, `method`, `path`, `idempotent`, `side_effects`
+- **Authentication**: Structured with `type`, `location`, `header_name`, `scope`
+- **Limits**: Rate limits (60/min, burst 10) and payload limits (10MB, 100k rows) with `enforced: true`
+- **Idempotency**: Supported via `Idempotency-Key` header, 86400s TTL, per-agency scope
+- **Errors**: Structured format with success/error schemas, error codes, and retryable codes
+- **Stability**: Beta level with 30-day advance notice for breaking changes
+- **Versioning**: API v1 with 90-day deprecation notice period
 
 ## API
 
-**Base URL**: `https://reporting-tool-api.jamesredwards89.workers.dev`
+**Base URL**: `https://reporting-api.rapidtools.dev`
 
-**Authentication**: API key via `x-api-key` header
+**Authentication**: API key via `x-api-key` header (per-agency scope)
 
-**Required CSV columns**: `date`, `sessions`, `users`
-**Optional CSV columns**: `pageviews`, `page_path`, `page_views`
+**Required CSV columns**: `date`, `sessions`, `users`, `pageviews`
+
+## Capabilities
+
+The service exposes 6 operations (see manifest for full details):
+
+1. **health_check** - `GET /api/health` - Service health and availability
+2. **create_client** - `POST /api/client` - Register new client [storage]
+3. **list_clients** - `GET /api/clients` - Retrieve all clients
+4. **upload_ga4_csv** - `PUT /api/client/{id}/ga4-csv` - Upload CSV data [storage]
+5. **preview_report** - `GET /api/client/{id}/report/preview` - Generate preview
+6. **send_report** - `POST /api/client/{id}/report/send` - Generate and send [email, storage]
+
+All operations are idempotent. Operations marked with `[storage]` or `[email]` indicate side effects.
 
 ## Quick flow
 
@@ -45,38 +62,29 @@ Automated weekly client reporting service that generates branded PDF reports fro
 3. Upload GA4 CSV for client
 4. Send report (generates PDF, sends email)
 
-## Endpoints
-
-- `POST /api/agency/register` — Register new agency
-- `POST /api/client` — Create client
-- `GET /api/clients` — List all clients
-- `POST /api/client/{id}/ga4-csv` — Upload CSV data (Content-Type: text/csv)
-- `POST /api/client/{id}/report/send` — Generate and send report
-- `GET /api/health` — Health check
-
 ## Example usage
 
 See `examples/` folder for shell scripts demonstrating each step:
 
 ```bash
 # 1. Register agency
-API_BASE=https://reporting-tool-api.jamesredwards89.workers.dev \
+API_BASE=https://reporting-api.rapidtools.dev \
   ./examples/01-register-agency.sh
 
 # 2. Create client
-API_BASE=https://reporting-tool-api.jamesredwards89.workers.dev \
+API_BASE=https://reporting-api.rapidtools.dev \
 API_KEY=your-api-key \
   ./examples/02-create-client.sh
 
 # 3. Upload CSV
-API_BASE=https://reporting-tool-api.jamesredwards89.workers.dev \
+API_BASE=https://reporting-api.rapidtools.dev \
 API_KEY=your-api-key \
 CLIENT_ID=client-id \
 CSV_PATH=./data.csv \
   ./examples/03-upload-csv.sh
 
 # 4. Send report
-API_BASE=https://reporting-tool-api.jamesredwards89.workers.dev \
+API_BASE=https://reporting-api.rapidtools.dev \
 API_KEY=your-api-key \
 CLIENT_ID=client-id \
   ./examples/04-send-report.sh
@@ -84,33 +92,72 @@ CLIENT_ID=client-id \
 
 ## Response format
 
-All endpoints return JSON:
+All endpoints follow the v1 contract error structure:
+
+**Success:**
 
 ```json
 {
-  "success": true,
-  "client": { ... },
-  "nextSteps": {
-    "uploadCsv": "/api/client/{id}/ga4-csv",
-    "sendReport": "/api/client/{id}/report/send"
+  "ok": true,
+  "data": {
+    "client": { ... },
+    "nextSteps": {
+      "uploadCsv": "/api/client/{id}/ga4-csv",
+      "sendReport": "/api/client/{id}/report/send"
+    }
   }
 }
 ```
 
-Errors return:
+**Error:**
 
 ```json
 {
-  "success": false,
-  "error": "Error message"
+  "ok": false,
+  "error": {
+    "code": "CLIENT_NOT_FOUND",
+    "message": "Client with ID abc123 not found"
+  }
 }
 ```
 
+## Error codes
+
+**Application errors:**
+- `UNAUTHORIZED` - Invalid or missing API key
+- `FORBIDDEN` - Insufficient permissions
+- `CLIENT_NOT_FOUND` - Client ID does not exist
+- `INVALID_CSV_FORMAT` - CSV format is invalid
+- `CSV_TOO_LARGE` - CSV exceeds 10MB limit
+- `MISSING_REQUIRED_HEADERS` - Required CSV columns missing
+- `REPORT_GENERATION_FAILED` - PDF generation failed (retryable)
+- `EMAIL_DELIVERY_FAILED` - Email sending failed (retryable)
+
+## Rate limits
+
+- **Requests per minute**: 60
+- **Burst allowance**: 10 requests
+- **Enforcement**: Enabled
+- **Scope**: Per API key (per-agency)
+
+## Payload limits
+
+- **Max CSV size**: 10,485,760 bytes (10MB)
+- **Max CSV rows**: 100,000 rows
+- **Enforcement**: Enabled
+
+## Idempotency
+
+Supported via `Idempotency-Key` header:
+- **TTL**: 86,400 seconds (24 hours)
+- **Scope**: Per agency
+- Repeat requests with same key return cached result
+
 ## Data handling
 
-- Storage: Cloudflare KV + R2
-- Retention: Minimum required for reporting (CSV + generated PDFs)
-- Training use: No
+- **Storage**: Cloudflare KV + R2
+- **Retention**: CSV data and generated PDFs retained for active subscriptions
+- **Training use**: No
 
 ## Provider
 
