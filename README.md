@@ -36,7 +36,7 @@ This service follows **RapidTools machine contract v1** (`schema_version: "1.0"`
 
 ## API
 
-**Base URL**: `https://reporting-api.rapidtools.dev`
+**Base URL**: `https://reporting-tool-api.jamesredwards89.workers.dev`
 
 **Authentication**: API key via `x-api-key` header (per-agency scope)
 
@@ -68,23 +68,23 @@ See `examples/` folder for shell scripts demonstrating each step:
 
 ```bash
 # 1. Register agency
-API_BASE=https://reporting-api.rapidtools.dev \
+API_BASE=https://reporting-tool-api.jamesredwards89.workers.dev \
   ./examples/01-register-agency.sh
 
 # 2. Create client
-API_BASE=https://reporting-api.rapidtools.dev \
+API_BASE=https://reporting-tool-api.jamesredwards89.workers.dev \
 API_KEY=your-api-key \
   ./examples/02-create-client.sh
 
 # 3. Upload CSV
-API_BASE=https://reporting-api.rapidtools.dev \
+API_BASE=https://reporting-tool-api.jamesredwards89.workers.dev \
 API_KEY=your-api-key \
 CLIENT_ID=client-id \
 CSV_PATH=./data.csv \
   ./examples/03-upload-csv.sh
 
 # 4. Send report
-API_BASE=https://reporting-api.rapidtools.dev \
+API_BASE=https://reporting-tool-api.jamesredwards89.workers.dev \
 API_KEY=your-api-key \
 CLIENT_ID=client-id \
   ./examples/04-send-report.sh
@@ -92,7 +92,7 @@ CLIENT_ID=client-id \
 
 ## Response format
 
-All endpoints follow the v1 contract error structure:
+All endpoints follow the v1 envelope structure:
 
 **Success:**
 
@@ -121,17 +121,40 @@ All endpoints follow the v1 contract error structure:
 }
 ```
 
+**Health check example:**
+
+```bash
+curl https://reporting-tool-api.jamesredwards89.workers.dev/api/health
+```
+
+```json
+{
+  "ok": true,
+  "data": {
+    "status": "ok",
+    "env": "prod",
+    "timestamp": "2025-12-17T16:28:58.108Z"
+  }
+}
+```
+
 ## Error codes
 
 **Application errors:**
 - `UNAUTHORIZED` - Invalid or missing API key
+- `SUBSCRIPTION_INACTIVE` - Agency subscription is not active
 - `FORBIDDEN` - Insufficient permissions
+- `MISSING_REQUIRED_FIELDS` - Required fields missing in request
+- `INVALID_EMAIL` - Email format is invalid
 - `CLIENT_NOT_FOUND` - Client ID does not exist
-- `INVALID_CSV_FORMAT` - CSV format is invalid
-- `CSV_TOO_LARGE` - CSV exceeds 10MB limit
-- `MISSING_REQUIRED_HEADERS` - Required CSV columns missing
-- `REPORT_GENERATION_FAILED` - PDF generation failed (retryable)
-- `EMAIL_DELIVERY_FAILED` - Email sending failed (retryable)
+- `MISSING_CLIENT_ID` - Client ID parameter missing
+- `INVALID_CSV` - CSV format is invalid
+- `NO_DATA_UPLOADED` - No CSV data has been uploaded yet
+- `DATA_NOT_FOUND` - Uploaded data not found
+- `REPORT_SEND_FAILED` - Report sending failed (retryable)
+- `AGENCY_NOT_FOUND` - Agency not found
+- `WEBHOOK_ERROR` - Webhook processing error (retryable)
+- `INTERNAL_ERROR` - Internal server error (retryable)
 
 ## Rate limits
 
