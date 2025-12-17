@@ -42,7 +42,7 @@
     },
     {
       "id": "upload_ga4_csv",
-      "method": "PUT",
+      "method": "POST",
       "path": "/api/client/{id}/ga4-csv",
       "description": "Upload GA4 analytics CSV data for a client",
       "idempotent": true,
@@ -50,7 +50,7 @@
     },
     {
       "id": "preview_report",
-      "method": "GET",
+      "method": "POST",
       "path": "/api/client/{id}/report/preview",
       "description": "Generate and return report preview without sending",
       "idempotent": true,
