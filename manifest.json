@@ -104,17 +104,24 @@
     },
     "codes": [
       "UNAUTHORIZED",
+      "SUBSCRIPTION_INACTIVE",
       "FORBIDDEN",
+      "MISSING_REQUIRED_FIELDS",
+      "INVALID_EMAIL",
       "CLIENT_NOT_FOUND",
-      "INVALID_CSV_FORMAT",
-      "CSV_TOO_LARGE",
-      "MISSING_REQUIRED_HEADERS",
-      "REPORT_GENERATION_FAILED",
-      "EMAIL_DELIVERY_FAILED"
+      "MISSING_CLIENT_ID",
+      "INVALID_CSV",
+      "NO_DATA_UPLOADED",
+      "DATA_NOT_FOUND",
+      "REPORT_SEND_FAILED",
+      "AGENCY_NOT_FOUND",
+      "WEBHOOK_ERROR",
+      "INTERNAL_ERROR"
     ],
     "retryable_codes": [
-      "REPORT_GENERATION_FAILED",
-      "EMAIL_DELIVERY_FAILED"
+      "REPORT_SEND_FAILED",
+      "WEBHOOK_ERROR",
+      "INTERNAL_ERROR"
     ]
   },
   "stability": {
