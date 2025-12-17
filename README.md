@@ -172,6 +172,7 @@ curl https://reporting-tool-api.jamesredwards89.workers.dev/api/clients
 - `WEBHOOK_ERROR` - Webhook processing error
 - `INTERNAL_ERROR` - Internal server error
 - `NOT_FOUND` - Resource not found
+- `IDEMPOTENCY_KEY_REUSE_MISMATCH` - Idempotency key reused with different payload
 
 **Note**: Clients should implement their own retry logic with appropriate backoff based on error type and use case.
 
@@ -190,10 +191,71 @@ curl https://reporting-tool-api.jamesredwards89.workers.dev/api/clients
 
 ## Idempotency
 
-Supported via `Idempotency-Key` header:
+**Optional** support via `idempotency-key` header:
+- **Supported endpoints**: `send_report` only
 - **TTL**: 86,400 seconds (24 hours)
-- **Scope**: Per agency
-- Repeat requests with same key return cached result
+- **Scope**: `per_agency_per_client`
+- Repeat requests with same key and payload return cached result with `replayed: true`
+- Same key with different payload returns `409 IDEMPOTENCY_KEY_REUSE_MISMATCH`
+
+**Example: First call with idempotency key**
+
+```bash
+curl -X POST "https://reporting-tool-api.jamesredwards89.workers.dev/api/client/{id}/report/send" \
+  -H "x-api-key: your-api-key" \
+  -H "idempotency-key: unique-key-123"
+```
+
+```json
+{
+  "ok": true,
+  "data": {
+    "clientId": "...",
+    "sentTo": "client@example.com",
+    "pdfKey": "...",
+    "sentAt": "2025-12-17T17:00:00.000Z"
+  }
+}
+```
+
+**Example: Replay with same key (no duplicate email)**
+
+```bash
+curl -X POST "https://reporting-tool-api.jamesredwards89.workers.dev/api/client/{id}/report/send" \
+  -H "x-api-key: your-api-key" \
+  -H "idempotency-key: unique-key-123"
+```
+
+```json
+{
+  "ok": true,
+  "data": {
+    "clientId": "...",
+    "sentTo": "client@example.com",
+    "pdfKey": "...",
+    "sentAt": "2025-12-17T17:00:00.000Z",
+    "replayed": true
+  }
+}
+```
+
+**Example: Same key with different payload (conflict)**
+
+```bash
+curl -X POST "https://reporting-tool-api.jamesredwards89.workers.dev/api/client/different-id/report/send" \
+  -H "x-api-key: your-api-key" \
+  -H "idempotency-key: unique-key-123"
+```
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "IDEMPOTENCY_KEY_REUSE_MISMATCH",
+    "message": "Idempotency key was already used with a different request payload"
+  }
+}
+```
 
 ## Data handling
 
