@@ -28,10 +28,10 @@ This service follows **RapidTools machine contract v1** (`schema_version: "1.0"`
 
 - **Capabilities**: Array of operation descriptors with `id`, `method`, `path`, `idempotent`, `side_effects`
 - **Authentication**: Structured with `type`, `location`, `header_name`, `scope`
-- **Limits**: Rate limits (60/min, burst 10) and payload limits (10MB, 100k rows) with `enforced: true`
-- **Idempotency**: Supported via `Idempotency-Key` header, 86400s TTL, per-agency scope
+- **Limits**: Rate limits (registration only: 3/hour per IP) and payload limits (5MB, 100k rows) enforced
+- **Idempotency**: Optional via `Idempotency-Key` header, 86400s TTL, per-agency scope (send_report endpoint only)
 - **Errors**: Structured format with success/error schemas, error codes, and retryable codes
-- **Stability**: Beta level with 30-day advance notice for breaking changes
+- **Stability**: Limited testing with 30-day advance notice for breaking changes
 - **Versioning**: API v1 with 90-day deprecation notice period
 
 ## API
@@ -44,16 +44,18 @@ This service follows **RapidTools machine contract v1** (`schema_version: "1.0"`
 
 ## Capabilities
 
-The service exposes 6 operations (see manifest for full details):
+The service exposes 8 operations (see manifest for full details):
 
 1. **health_check** - `GET /api/health` - Service health and availability
 2. **create_client** - `POST /api/client` - Register new client [storage]
 3. **list_clients** - `GET /api/clients` - Retrieve all clients
-4. **upload_ga4_csv** - `PUT /api/client/{id}/ga4-csv` - Upload CSV data [storage]
-5. **preview_report** - `GET /api/client/{id}/report/preview` - Generate preview
+4. **upload_ga4_csv** - `POST /api/client/{id}/ga4-csv` - Upload CSV data [storage]
+5. **preview_report** - `POST /api/client/{id}/report/preview` - Generate preview
 6. **send_report** - `POST /api/client/{id}/report/send` - Generate and send [email, storage]
+7. **generate_signed_pdf_url** - `POST /api/reports/{clientId}/{filename}/signed-url` - Generate time-limited PDF download URL
+8. **download_pdf** - `GET /reports/{agencyId}/{clientId}/{filename}?token=...` - Download PDF with signed token
 
-All operations are idempotent. Operations marked with `[storage]` or `[email]` indicate side effects.
+Most operations are idempotent. `send_report` is NOT idempotent unless `Idempotency-Key` header is provided. Operations marked with `[storage]` or `[email]` indicate side effects.
 
 ## Quick flow
 
@@ -178,25 +180,29 @@ curl https://reporting-tool-api.jamesredwards89.workers.dev/api/clients
 
 ## Rate limits
 
-- **Requests per minute**: 60
-- **Burst allowance**: 10 requests
-- **Enforcement**: Enabled
-- **Scope**: Per API key (per-agency)
+- **General API**: No rate limiting enforced (60/min documented but not implemented)
+- **Agency registration**: 3 attempts per IP per hour (enforced)
+- **Error code**: `RATE_LIMIT_EXCEEDED` (registration endpoint only)
+- **Scope**: Per IP address (registration), per API key (future)
 
 ## Payload limits
 
-- **Max CSV size**: 10,485,760 bytes (10MB)
+- **Max CSV size**: 5,242,880 bytes (5MB)
 - **Max CSV rows**: 100,000 rows
 - **Enforcement**: Enabled
+- **Error codes**: `CSV_TOO_LARGE`, `CSV_TOO_MANY_ROWS`
 
 ## Idempotency
 
-**Optional** support via `idempotency-key` header:
-- **Supported endpoints**: `send_report` only
+**Optional** support via `Idempotency-Key` header (send_report endpoint only):
+- **Behavior without header**: NOT idempotent - duplicate requests send duplicate emails
+- **Behavior with header**: Idempotent - duplicate requests return cached result
 - **TTL**: 86,400 seconds (24 hours)
 - **Scope**: `per_agency_per_client`
 - Repeat requests with same key and payload return cached result with `replayed: true`
 - Same key with different payload returns `409 IDEMPOTENCY_KEY_REUSE_MISMATCH`
+
+**Important**: Do not assume `send_report` is safe to retry without the header. Always provide `Idempotency-Key` for retry safety.
 
 **Example: First call with idempotency key**
 
