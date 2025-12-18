@@ -78,12 +78,25 @@
     "rate_limits": {
       "requests_per_minute": 60,
       "burst": 10,
-      "enforced": false
+      "enforced": false,
+      "notes": "Rate limiting not enforced at API level. Registration endpoint has IP-based rate limit (3 per hour)."
     },
     "payload_limits": {
-      "max_bytes": 10485760,
+      "max_bytes": 5242880,
       "max_rows": 100000,
-      "enforced": false
+      "enforced": true,
+      "notes": "CSV uploads limited to 5MB and 100,000 rows. Enforced as of Hostile Audit Phase 1."
+    },
+    "plan_limits": {
+      "starter": {
+        "max_clients": 5,
+        "enforced": true
+      },
+      "pro": {
+        "max_clients": null,
+        "enforced": false,
+        "notes": "Unlimited clients"
+      }
     }
   },
   "idempotency": {
@@ -111,16 +124,21 @@
     "codes": [
       "UNAUTHORIZED",
       "SUBSCRIPTION_INACTIVE",
+      "TRIAL_EXPIRED",
       "FORBIDDEN",
       "MISSING_REQUIRED_FIELDS",
       "INVALID_EMAIL",
       "CLIENT_NOT_FOUND",
+      "CLIENT_LIMIT_EXCEEDED",
       "MISSING_CLIENT_ID",
       "INVALID_CSV",
+      "CSV_TOO_LARGE",
+      "CSV_TOO_MANY_ROWS",
       "NO_DATA_UPLOADED",
       "DATA_NOT_FOUND",
       "REPORT_SEND_FAILED",
       "AGENCY_NOT_FOUND",
+      "RATE_LIMIT_EXCEEDED",
       "WEBHOOK_ERROR",
       "INTERNAL_ERROR",
       "NOT_FOUND",
