@@ -1,5 +1,7 @@
 # RapidTools Reporting
 
+![Contract Tests](https://github.com/builder-rapidtools/rapidtools-reporting/actions/workflows/contract-tests.yml/badge.svg)
+
 Automated weekly client reporting service that generates branded PDF reports from analytics data and delivers them via email.
 
 ## What it does
