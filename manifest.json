@@ -15,6 +15,12 @@
     "contact": "reports@rapidtools.dev",
     "jurisdiction": "UK"
   },
+  "security": {
+    "contact": "security@rapidtools.dev",
+    "disclosure_policy_url": "https://directory.rapidtools.dev/security",
+    "incident_response_url": "https://directory.rapidtools.dev/security#incidents",
+    "last_updated": "2025-12-18"
+  },
   "capabilities": [
     {
       "id": "health_check",
