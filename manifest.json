@@ -129,9 +129,8 @@
     "retryable_codes": []
   },
   "stability": {
-    "level": "beta",
-    "backward_compatibility": "Maintained for existing endpoints during beta",
-    "breaking_change_policy": "Announced 30 days in advance via email to registered agencies"
+    "level": "stable",
+    "breaking_change_policy": "versioned_manifest"
   },
   "versioning": {
     "api": "v1",
