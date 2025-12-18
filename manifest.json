@@ -41,6 +41,23 @@
       "side_effects": []
     },
     {
+      "id": "delete_client",
+      "method": "DELETE",
+      "path": "/api/client/{id}",
+      "description": "Delete a client and optionally cascade delete all associated data",
+      "idempotent": true,
+      "side_effects": ["storage"],
+      "parameters": {
+        "path": {
+          "id": "Client UUID"
+        },
+        "headers": {
+          "X-Cascade-Delete": "Optional header (default: not set). If 'true', deletes all R2 objects (CSVs, PDFs) and report metadata. Without this header, only deletes client KV entry (R2 objects orphaned)."
+        }
+      },
+      "notes": "Hostile Audit Phase 4: Added cascade delete to address 'no orphaned data' principle. Phase 4 Hardening: Uses header (not query param) for safety. Without X-Cascade-Delete: true, R2 objects remain orphaned. Client-scoped guardrails prevent agency-wide deletion. Idempotent: safe to call multiple times."
+    },
+    {
       "id": "upload_ga4_csv",
       "method": "POST",
       "path": "/api/client/{id}/ga4-csv",

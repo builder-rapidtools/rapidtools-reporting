@@ -44,18 +44,21 @@ This service follows **RapidTools machine contract v1** (`schema_version: "1.0"`
 
 ## Capabilities
 
-The service exposes 8 operations (see manifest for full details):
+The service exposes 9 operations (see manifest for full details):
 
 1. **health_check** - `GET /api/health` - Service health and availability
 2. **create_client** - `POST /api/client` - Register new client [storage]
 3. **list_clients** - `GET /api/clients` - Retrieve all clients
-4. **upload_ga4_csv** - `POST /api/client/{id}/ga4-csv` - Upload CSV data [storage]
-5. **preview_report** - `POST /api/client/{id}/report/preview` - Generate preview
-6. **send_report** - `POST /api/client/{id}/report/send` - Generate and send [email, storage]
-7. **generate_signed_pdf_url** - `POST /api/reports/{clientId}/{filename}/signed-url` - Generate time-limited PDF download URL
-8. **download_pdf** - `GET /reports/{agencyId}/{clientId}/{filename}?token=...` - Download PDF with signed token
+4. **delete_client** - `DELETE /api/client/{id}` (header: `X-Cascade-Delete: true`) - Delete client and optionally all data [storage]
+5. **upload_ga4_csv** - `POST /api/client/{id}/ga4-csv` - Upload CSV data [storage]
+6. **preview_report** - `POST /api/client/{id}/report/preview` - Generate preview
+7. **send_report** - `POST /api/client/{id}/report/send` - Generate and send [email, storage]
+8. **generate_signed_pdf_url** - `POST /api/reports/{clientId}/{filename}/signed-url` - Generate time-limited PDF download URL
+9. **download_pdf** - `GET /reports/{agencyId}/{clientId}/{filename}?token=...` - Download PDF with signed token
 
 Most operations are idempotent. `send_report` is NOT idempotent unless `Idempotency-Key` header is provided. Operations marked with `[storage]` or `[email]` indicate side effects.
+
+**Note on delete_client**: Without `X-Cascade-Delete: true` header, only the client KV entry is deleted. R2 objects (CSVs, PDFs) remain orphaned. Use `X-Cascade-Delete: true` header to delete all associated data. Client-scoped guardrails prevent accidental agency-wide deletion.
 
 ## Quick flow
 
