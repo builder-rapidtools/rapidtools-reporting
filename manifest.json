@@ -1,13 +1,6 @@
 {
   "service": "RapidTools Reporting API",
   "version": "1.0",
-  "non_goals": [
-    "real-time streaming",
-    "data transformation",
-    "direct GA4 API integration",
-    "multi-client aggregation",
-    "synchronous validation"
-  ],
   "schema_version": "1.0",
   "last_updated": "2025-12-18",
   "base_url": "https://reporting-api.rapidtools.dev",
