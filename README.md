@@ -180,8 +180,9 @@ curl https://reporting-tool-api.jamesredwards89.workers.dev/api/clients
 - `INTERNAL_ERROR` - Internal server error
 - `NOT_FOUND` - Resource not found
 - `IDEMPOTENCY_KEY_REUSE_MISMATCH` - Idempotency key reused with different payload
+- `IDEMPOTENCY_CHECK_FAILED` - Unable to verify idempotency (storage unavailable, FRS-2)
 
-**Note**: Clients should implement their own retry logic with appropriate backoff based on error type and use case.
+**Note**: Clients should implement their own retry logic with appropriate backoff based on error type and use case. See [Agent Retry & Backoff](#agent-retry--backoff-frs-2) for detailed guidance.
 
 ## Rate limits
 
@@ -190,8 +191,11 @@ curl https://reporting-tool-api.jamesredwards89.workers.dev/api/clients
 - **Report generation** (`/api/client/:id/report/send`): 10 requests per client per hour (enforced, FRS-1)
 - **Error code**: `RATE_LIMIT_EXCEEDED`
 - **Scope**: Per IP address (registration), per client (report generation)
+- **Observability (FRS-2)**: Rate-limited endpoints return `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` headers
 
 **FRS-1 (2025-12-19)**: Added rate limiting to report generation endpoint to prevent economic abuse via email spam and excessive PDF generation. Limit: 10 reports per client per hour. This bounds worst-case trial abuse to £1.40 (10 emails × 14 days × £0.01/email), down from £504 without rate limiting.
+
+**FRS-2 (2025-12-19)**: Added rate limit headers for agent observability. Agents can now programmatically determine remaining quota and reset time, enabling intelligent retry strategies. See [Agent Retry & Backoff](#agent-retry--backoff-frs-2) for usage guidance.
 
 ## Payload limits
 
@@ -214,6 +218,8 @@ curl https://reporting-tool-api.jamesredwards89.workers.dev/api/clients
 **Important**: Do not assume `send_report` is safe to retry without the header. Always provide `idempotency-key` for retry safety.
 
 **FRS-1 (2025-12-19)**: Fixed header case sensitivity. Implementation now accepts both lowercase (`idempotency-key`) and capitalized (`Idempotency-Key`) forms to ensure compatibility with HTTP header case-insensitivity spec and diverse agent implementations.
+
+**FRS-2 (2025-12-19)**: Idempotency check failures return `503 IDEMPOTENCY_CHECK_FAILED` (fail closed). If storage is unavailable, the request is rejected to prevent duplicates. After successful operation, storage failures are logged but do not fail the request.
 
 **Example: First call with idempotency key**
 
@@ -273,6 +279,108 @@ curl -X POST "https://reporting-tool-api.jamesredwards89.workers.dev/api/client/
   }
 }
 ```
+
+## Agent Retry & Backoff (FRS-2)
+
+**For autonomous agents and retry-heavy clients:**
+
+### Retry Safety by Endpoint
+
+| Endpoint | Safe to Retry | Condition | Recommended Strategy |
+|----------|---------------|-----------|----------------------|
+| `POST /api/client/:id/report/send` | ✅ **YES** | **With** `idempotency-key` header | Exponential backoff, max 3 retries |
+| `POST /api/client/:id/report/send` | ❌ **NO** | **Without** idempotency-key | Do not retry (causes duplicate emails) |
+| `POST /api/reports/:clientId/:filename/signed-url` | ✅ **YES** | Always (stateless, idempotent) | Exponential backoff, max 3 retries |
+| `GET /reports/:agencyId/:clientId/:filename` | ✅ **YES** | Always (read-only) | Exponential backoff |
+| All other endpoints | ✅ **YES** | Check `idempotent` field in manifest | Exponential backoff |
+
+### Rate Limit Headers (FRS-2)
+
+Rate-limited endpoints return headers for observability:
+
+```http
+X-RateLimit-Limit: 10
+X-RateLimit-Remaining: 7
+X-RateLimit-Reset: 1734567890
+```
+
+**Agent behavior on 429**:
+1. Read `X-RateLimit-Reset` header (Unix timestamp)
+2. Calculate `wait_seconds = reset_time - current_time`
+3. Sleep until `reset_time` before retrying
+4. Do not retry before window reset (waste of resources)
+
+### Idempotency Failure Modes
+
+**Scenario**: Storage unavailable during idempotency check
+
+**Behavior**: `503 IDEMPOTENCY_CHECK_FAILED` (fail closed)
+
+**Agent response**:
+- Treat as temporary failure
+- Retry with exponential backoff (same idempotency key)
+- Max 3 retries
+- If all retries fail, try without idempotency key (accept duplicate risk) OR use new key
+
+**Example:**
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "IDEMPOTENCY_CHECK_FAILED",
+    "message": "Unable to verify request idempotency. Please retry with a different idempotency key or without the header."
+  }
+}
+```
+
+### Recommended Retry Logic
+
+```python
+import time
+import random
+
+def retry_with_backoff(func, max_retries=3, base_delay=1):
+    for attempt in range(max_retries):
+        try:
+            response = func()
+
+            if response.status_code == 429:
+                # Rate limited - wait until reset
+                reset_time = int(response.headers.get('X-RateLimit-Reset', 0))
+                wait_seconds = max(0, reset_time - int(time.time()))
+                print(f"Rate limited. Waiting {wait_seconds}s until reset.")
+                time.sleep(wait_seconds + 1)  # +1 for safety margin
+                continue
+
+            if response.status_code >= 500:
+                # Server error - exponential backoff
+                delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                print(f"Server error. Retrying in {delay:.1f}s...")
+                time.sleep(delay)
+                continue
+
+            return response  # Success or non-retryable error
+
+        except Exception as e:
+            if attempt == max_retries - 1:
+                raise
+            delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+            time.sleep(delay)
+
+    raise Exception("Max retries exceeded")
+```
+
+### Error Code Retry Matrix
+
+| Error Code | Retryable | Wait Strategy |
+|------------|-----------|---------------|
+| `RATE_LIMIT_EXCEEDED` | ✅ Yes | Wait until `X-RateLimit-Reset` |
+| `IDEMPOTENCY_CHECK_FAILED` | ✅ Yes | Exponential backoff (3x max) |
+| `IDEMPOTENCY_KEY_REUSE_MISMATCH` | ❌ No | Use different idempotency key |
+| `INTERNAL_ERROR` | ✅ Yes | Exponential backoff (3x max) |
+| `UNAUTHORIZED` | ❌ No | Fix API key |
+| `CLIENT_NOT_FOUND` | ❌ No | Fix client ID |
+| `TRIAL_EXPIRED` | ❌ No | Upgrade subscription |
 
 ## Data handling
 

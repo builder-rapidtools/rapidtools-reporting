@@ -89,10 +89,28 @@
         "supported": true,
         "requires_header": "idempotency-key",
         "scope": "per_agency_per_client",
-        "ttl_seconds": 86400
+        "ttl_seconds": 86400,
+        "failure_mode": "fail_closed"
+      },
+      "retry_safety": {
+        "safe_with_idempotency_key": true,
+        "safe_without_idempotency_key": false,
+        "recommended_backoff": "exponential",
+        "max_retries": 3
+      },
+      "rate_limiting": {
+        "enforced": true,
+        "limit": 10,
+        "window_seconds": 3600,
+        "scope": "per_client",
+        "headers": {
+          "X-RateLimit-Limit": "Maximum requests per window",
+          "X-RateLimit-Remaining": "Requests remaining in current window",
+          "X-RateLimit-Reset": "Unix timestamp when window resets"
+        }
       },
       "side_effects": ["email", "storage"],
-      "notes": "NOT idempotent by default. Becomes idempotent when idempotency-key header is provided (accepts both lowercase and capitalized forms per HTTP spec). Without header, duplicate requests send duplicate emails. Rate limited to 10 requests per client per hour (FRS-1)."
+      "notes": "NOT idempotent by default. Becomes idempotent when idempotency-key header is provided (accepts both lowercase and capitalized forms per HTTP spec). Without header, duplicate requests send duplicate emails. Rate limited to 10 requests per client per hour (FRS-1). FRS-2: Adds X-RateLimit-* headers for agent observability. Idempotency check failures return 503 IDEMPOTENCY_CHECK_FAILED (fail closed). Retry safe ONLY with idempotency-key header."
     },
     {
       "id": "generate_signed_pdf_url",
@@ -100,6 +118,10 @@
       "path": "/api/reports/{clientId}/{filename}/signed-url",
       "description": "Generate time-limited signed URL for PDF download",
       "idempotent": true,
+      "retry_safety": {
+        "safe_to_retry": true,
+        "reason": "Stateless token generation, no side effects"
+      },
       "side_effects": [],
       "authentication_required": true,
       "parameters": {
@@ -111,7 +133,7 @@
           "ttl": "Time-to-live in seconds (default: 900, max: 3600)"
         }
       },
-      "notes": "Returns signed URL with expiration timestamp. Token prevents unauthorized PDF access via URL enumeration. Requires active subscription."
+      "notes": "Returns signed URL with expiration timestamp. Token prevents unauthorized PDF access via URL enumeration. Requires active subscription. FRS-2: Always safe to retry (idempotent, stateless)."
     },
     {
       "id": "download_pdf",
@@ -200,7 +222,8 @@
     "header_name": "idempotency-key",
     "ttl_seconds": 86400,
     "scope": "per_agency_per_client",
-    "notes": "Optional idempotency support via idempotency-key header (accepts both lowercase and capitalized forms per HTTP spec). Currently supported for send_report endpoint only. When provided, prevents duplicate email sends for the same agency+client+key combination. Keys expire after 24 hours. FRS-1 (2025-12-19): Fixed header case sensitivity to accept both idempotency-key and Idempotency-Key."
+    "failure_mode": "fail_closed",
+    "notes": "Optional idempotency support via idempotency-key header (accepts both lowercase and capitalized forms per HTTP spec). Currently supported for send_report endpoint only. When provided, prevents duplicate email sends for the same agency+client+key combination. Keys expire after 24 hours. FRS-1 (2025-12-19): Fixed header case sensitivity to accept both idempotency-key and Idempotency-Key. FRS-2 (2025-12-19): Idempotency check failures return 503 IDEMPOTENCY_CHECK_FAILED (fail closed). If storage is unavailable, request is rejected to prevent duplicates. After successful operation, storage failures are logged but do not fail the request."
   },
   "errors": {
     "format": "application/json",
@@ -239,6 +262,7 @@
       "INTERNAL_ERROR",
       "NOT_FOUND",
       "IDEMPOTENCY_KEY_REUSE_MISMATCH",
+      "IDEMPOTENCY_CHECK_FAILED",
       "PDF_TOKEN_REQUIRED",
       "PDF_TOKEN_INVALID",
       "PDF_TOKEN_EXPIRED",
