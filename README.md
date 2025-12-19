@@ -187,8 +187,11 @@ curl https://reporting-tool-api.jamesredwards89.workers.dev/api/clients
 
 - **General API**: No rate limiting enforced (60/min documented but not implemented)
 - **Agency registration**: 3 attempts per IP per hour (enforced)
-- **Error code**: `RATE_LIMIT_EXCEEDED` (registration endpoint only)
-- **Scope**: Per IP address (registration), per API key (future)
+- **Report generation** (`/api/client/:id/report/send`): 10 requests per client per hour (enforced, FRS-1)
+- **Error code**: `RATE_LIMIT_EXCEEDED`
+- **Scope**: Per IP address (registration), per client (report generation)
+
+**FRS-1 (2025-12-19)**: Added rate limiting to report generation endpoint to prevent economic abuse via email spam and excessive PDF generation. Limit: 10 reports per client per hour. This bounds worst-case trial abuse to £1.40 (10 emails × 14 days × £0.01/email), down from £504 without rate limiting.
 
 ## Payload limits
 
@@ -199,7 +202,8 @@ curl https://reporting-tool-api.jamesredwards89.workers.dev/api/clients
 
 ## Idempotency
 
-**Optional** support via `Idempotency-Key` header (send_report endpoint only):
+**Optional** support via `idempotency-key` header (send_report endpoint only):
+- **Header name**: `idempotency-key` (lowercase canonical form, but accepts both `idempotency-key` and `Idempotency-Key` per HTTP spec)
 - **Behavior without header**: NOT idempotent - duplicate requests send duplicate emails
 - **Behavior with header**: Idempotent - duplicate requests return cached result
 - **TTL**: 86,400 seconds (24 hours)
@@ -207,7 +211,9 @@ curl https://reporting-tool-api.jamesredwards89.workers.dev/api/clients
 - Repeat requests with same key and payload return cached result with `replayed: true`
 - Same key with different payload returns `409 IDEMPOTENCY_KEY_REUSE_MISMATCH`
 
-**Important**: Do not assume `send_report` is safe to retry without the header. Always provide `Idempotency-Key` for retry safety.
+**Important**: Do not assume `send_report` is safe to retry without the header. Always provide `idempotency-key` for retry safety.
+
+**FRS-1 (2025-12-19)**: Fixed header case sensitivity. Implementation now accepts both lowercase (`idempotency-key`) and capitalized (`Idempotency-Key`) forms to ensure compatibility with HTTP header case-insensitivity spec and diverse agent implementations.
 
 **Example: First call with idempotency key**
 

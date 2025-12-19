@@ -87,12 +87,12 @@
       "idempotent": false,
       "idempotency": {
         "supported": true,
-        "requires_header": "Idempotency-Key",
+        "requires_header": "idempotency-key",
         "scope": "per_agency_per_client",
         "ttl_seconds": 86400
       },
       "side_effects": ["email", "storage"],
-      "notes": "NOT idempotent by default. Becomes idempotent when Idempotency-Key header is provided. Without header, duplicate requests send duplicate emails."
+      "notes": "NOT idempotent by default. Becomes idempotent when idempotency-key header is provided (accepts both lowercase and capitalized forms per HTTP spec). Without header, duplicate requests send duplicate emails. Rate limited to 10 requests per client per hour (FRS-1)."
     },
     {
       "id": "generate_signed_pdf_url",
@@ -166,6 +166,14 @@
           "enforced": true,
           "error_code": "RATE_LIMIT_EXCEEDED",
           "notes": "Registration endpoint limited to 3 attempts per IP per hour to prevent abuse."
+        },
+        "report_send": {
+          "limit": 10,
+          "window_seconds": 3600,
+          "scope": "per_client",
+          "enforced": true,
+          "error_code": "RATE_LIMIT_EXCEEDED",
+          "notes": "Report generation limited to 10 requests per client per hour to prevent economic abuse via email spam and PDF generation. Implemented in FRS-1 (2025-12-19)."
         }
       }
     },
@@ -192,7 +200,7 @@
     "header_name": "idempotency-key",
     "ttl_seconds": 86400,
     "scope": "per_agency_per_client",
-    "notes": "Optional idempotency support via Idempotency-Key header. Currently supported for send_report endpoint only. When provided, prevents duplicate email sends for the same agency+client+key combination. Keys expire after 24 hours."
+    "notes": "Optional idempotency support via idempotency-key header (accepts both lowercase and capitalized forms per HTTP spec). Currently supported for send_report endpoint only. When provided, prevents duplicate email sends for the same agency+client+key combination. Keys expire after 24 hours. FRS-1 (2025-12-19): Fixed header case sensitivity to accept both idempotency-key and Idempotency-Key."
   },
   "errors": {
     "format": "application/json",
