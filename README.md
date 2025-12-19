@@ -189,13 +189,16 @@ curl https://reporting-tool-api.jamesredwards89.workers.dev/api/clients
 - **General API**: No rate limiting enforced (60/min documented but not implemented)
 - **Agency registration**: 3 attempts per IP per hour (enforced)
 - **Report generation** (`/api/client/:id/report/send`): 10 requests per client per hour (enforced, FRS-1)
+- **CSV upload** (`/api/client/:id/ga4-csv`): 20 requests per client per hour (enforced, FRS-3)
 - **Error code**: `RATE_LIMIT_EXCEEDED`
-- **Scope**: Per IP address (registration), per client (report generation)
+- **Scope**: Per IP address (registration), per client (report generation, CSV upload)
 - **Observability (FRS-2)**: Rate-limited endpoints return `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` headers
 
 **FRS-1 (2025-12-19)**: Added rate limiting to report generation endpoint to prevent economic abuse via email spam and excessive PDF generation. Limit: 10 reports per client per hour. This bounds worst-case trial abuse to £1.40 (10 emails × 14 days × £0.01/email), down from £504 without rate limiting.
 
 **FRS-2 (2025-12-19)**: Added rate limit headers for agent observability. Agents can now programmatically determine remaining quota and reset time, enabling intelligent retry strategies. See [Agent Retry & Backoff](#agent-retry--backoff-frs-2) for usage guidance.
+
+**FRS-3 (2025-12-19)**: Added rate limiting to CSV upload endpoint to prevent storage economic abuse via write amplification. Limit: 20 uploads per client per hour. This bounds worst-case trial storage abuse to £2.52/month (6,720 uploads × 5MB = 168GB × £0.015/GB), down from £453.60 without rate limiting (99.4% reduction).
 
 ## Payload limits
 

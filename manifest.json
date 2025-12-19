@@ -69,7 +69,19 @@
       "path": "/api/client/{id}/ga4-csv",
       "description": "Upload GA4 analytics CSV data for a client",
       "idempotent": true,
-      "side_effects": ["storage"]
+      "rate_limiting": {
+        "enforced": true,
+        "limit": 20,
+        "window_seconds": 3600,
+        "scope": "per_client",
+        "headers": {
+          "X-RateLimit-Limit": "Maximum requests per window",
+          "X-RateLimit-Remaining": "Requests remaining in current window",
+          "X-RateLimit-Reset": "Unix timestamp when window resets"
+        }
+      },
+      "side_effects": ["storage"],
+      "notes": "Rate limited to 20 uploads per client per hour to prevent storage economic abuse (FRS-3). Returns X-RateLimit-* headers for agent observability."
     },
     {
       "id": "preview_report",
@@ -196,6 +208,14 @@
           "enforced": true,
           "error_code": "RATE_LIMIT_EXCEEDED",
           "notes": "Report generation limited to 10 requests per client per hour to prevent economic abuse via email spam and PDF generation. Implemented in FRS-1 (2025-12-19)."
+        },
+        "csv_upload": {
+          "limit": 20,
+          "window_seconds": 3600,
+          "scope": "per_client",
+          "enforced": true,
+          "error_code": "RATE_LIMIT_EXCEEDED",
+          "notes": "CSV upload limited to 20 requests per client per hour to prevent storage economic abuse (write amplification). Implemented in FRS-3 (2025-12-19)."
         }
       }
     },
